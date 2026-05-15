@@ -345,6 +345,10 @@
             outline: 3px dashed var(--playlist-sc-color);
             outline-offset: -3px;
         }
+        .thumbnail.selected-pick {
+            outline: 3px solid #ffffff;
+            outline-offset: -3px;
+        }
         .thumbnail.selected-shortcut {
             outline: 3px dashed green;
             outline-offset: -3px;
@@ -860,6 +864,7 @@
                     </div>
                 </div>
                 <div class="top-bar-right">
+                    <button id="pick-list-btn" class="bar-button" style="display: none;">Generate Pick List</button>
                     <button id="shortcut-script-btn" class="bar-button">Generate Action Script</button>
                     <button id="create-playlist-btn" class="bar-button" style="display: none;">Create Playlist</button>
                     <button id="delete-shortcuts-btn" class="bar-button" style="display: none;">Delete Selected Shortcuts</button>
@@ -986,6 +991,7 @@
         const createPlaylistLoadBtn = document.getElementById('create-playlist-load-btn');
         const createPlaylistRootLoadBtn = document.getElementById('create-playlist-root-load-btn');
         const updatePlaylistRootLoadBtn = document.getElementById('update-playlist-root-load-btn');
+        const pickListBtn = document.getElementById('pick-list-btn');
         const shortcutScriptBtn = document.getElementById('shortcut-script-btn');
         const createPlaylistBtn = document.getElementById('create-playlist-btn');
         const deleteShortcutsBtn = document.getElementById('delete-shortcuts-btn');
@@ -2433,6 +2439,10 @@
                 });
             });
 
+            pickListBtn.addEventListener('click', () => {
+                generatePickList();
+            });
+
             shortcutScriptBtn.addEventListener('click', () => {
                 if (!hasChanges()) {
                     alert('No changes to save.');
@@ -2848,10 +2858,13 @@
             }
 
             rowDiv.querySelectorAll('.thumbnail').forEach(t => {
-                t.classList.remove('selected-root-sc', 'selected-subfolder-sc', 'selected-both-sc', 'selected-delete-sc', 'selected-playlist-sc', 'selected-shortcut', 'flipped');
+                t.classList.remove('selected-root-sc', 'selected-subfolder-sc', 'selected-both-sc', 'selected-delete-sc', 'selected-playlist-sc', 'selected-shortcut', 'flipped', 'selected-pick');
                 t.classList.remove('rotate-90', 'rotate-180', 'rotate-270');
                 if (type) {
                     t.classList.add('selected-' + type);
+                }
+                if (selection && selection.picked) {
+                    t.classList.add('selected-pick');
                 }
                 if (visualRotationStr !== "0") {
                     t.classList.add('rotate-' + visualRotationStr);
@@ -2884,6 +2897,15 @@
                     editBtn.style.backgroundColor = 'var(--edit-cuts-color)';
                 } else {
                     editBtn.style.backgroundColor = '';
+                }
+            }
+
+            const pickBtn = rowDiv.querySelector('.pick-btn');
+            if (pickBtn) {
+                if (selection && selection.picked) {
+                    pickBtn.classList.add('active');
+                } else {
+                    pickBtn.classList.remove('active');
                 }
             }
 
@@ -2962,6 +2984,20 @@
             leftGroup.appendChild(createDeleteCross(videoName, projectPath, subfolder, rowDiv));
             leftGroup.appendChild(createBtn('Rotate Left', () => rotate(-90)));
             leftGroup.appendChild(createBtn('Rotate Right', () => rotate(90)));
+            if (currentMode === 'sc') {
+                const togglePick = () => {
+                    let selection = shortcutSelections.get(key);
+                    if (!selection) {
+                        selection = { videoName, projectPath, subfolder, projectName, type: '', rotation: "0", flipped: false };
+                        shortcutSelections.set(key, selection);
+                    }
+                    selection.picked = !selection.picked;
+                    updateRowUI(rowDiv, videoName, projectPath);
+                };
+                const pickBtn = createBtn('Pick', togglePick);
+                pickBtn.className += ' pick-btn';
+                leftGroup.appendChild(pickBtn);
+            }
             leftGroup.appendChild(createBtn('Both', () => setType('both-sc'), 'both-sc', '--both-sc-color'));
             leftGroup.appendChild(createBtn('Subfolder', () => setType('subfolder-sc'), 'subfolder-sc', '--subfolder-sc-color'));
             leftGroup.appendChild(createBtn('Root', () => setType('root-sc'), 'root-sc', '--root-sc-color'));
@@ -3133,6 +3169,7 @@
             const isPlaylistRoot = mode === 'playlist-root' || mode === 'update-playlist-root';
 
             if (deleteShortcutsBtn) deleteShortcutsBtn.style.display = 'none'; 
+            if (pickListBtn) pickListBtn.style.display = isSc ? 'inline-block' : 'none';
             if (shortcutScriptBtn) shortcutScriptBtn.style.display = (isPlaylist || isPlaylistRoot) ? 'none' : 'inline-block';
             if (createPlaylistBtn) createPlaylistBtn.style.display = (isPlaylist || isPlaylistRoot) ? 'inline-block' : 'none';
 
@@ -3386,6 +3423,44 @@
             if (container.innerHTML === '') {
                 container.innerHTML = '<p>No actions to perform.</p>';
             }
+        }
+
+        function generatePickList() {
+            const pickedVideos = Array.from(shortcutSelections.values())
+                .filter(sel => sel.picked)
+                .map(sel => {
+                    const videoName = sel.videoName;
+                    const lastDotIndex = videoName.lastIndexOf('.');
+                    return lastDotIndex !== -1 ? videoName.substring(0, lastDotIndex) : videoName;
+                });
+
+            if (pickedVideos.length === 0) {
+                alert('No videos picked.');
+                return;
+            }
+
+            const scriptLines = [
+                '$PickedVideos = @(',
+            ];
+            pickedVideos.forEach((name, index) => {
+                const comma = (index === pickedVideos.length - 1) ? '' : ',';
+                scriptLines.push(`    '${name.replace(/'/g, "''")}'${comma}`);
+            });
+            scriptLines.push(')');
+
+            const scriptStr = scriptLines.join('\r\n');
+            batchScriptTextArea.value = scriptStr;
+
+            const summaryContainer = document.getElementById('action-summary-content');
+            summaryContainer.innerHTML = '<ul>' + pickedVideos.map(v => `<li>${v}</li>`).join('') + '</ul>';
+
+            const blob = new Blob(['\ufeff', scriptStr], { type: 'text/plain' });
+            downloadScriptLink.href = URL.createObjectURL(blob);
+            downloadScriptLink.download = 'picked_videos.ps1';
+
+            document.getElementById('script-modal-title').textContent = "Picked Videos PowerShell List";
+            document.getElementById('script-modal-desc').textContent = "PowerShell array containing picked video names (without extensions).";
+            scriptModal.style.display = 'block';
         }
 
         function generateShortcutScript() {
