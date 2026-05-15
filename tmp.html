@@ -968,7 +968,7 @@
             <textarea id="batch-script" rows="10" cols="80" readonly></textarea>
             <button id="copy-script-btn">Copy to Clipboard</button>
             <a id="download-script-link" download="create_shortcuts.ps1">
-                <button>Download .ps1 File</button>
+                <button id="download-btn-text">Download File</button>
             </a>
         </div>
     </div>
@@ -980,6 +980,7 @@
         const batchScriptTextArea = document.getElementById('batch-script');
         const copyScriptBtn = document.getElementById('copy-script-btn');
         const downloadScriptLink = document.getElementById('download-script-link');
+        const downloadBtnText = document.getElementById('download-btn-text');
         const hSizeSelector = document.getElementById('h-size-selector');
         const vSizeSelector = document.getElementById('v-size-selector');
         const customSizeInput = document.getElementById('custom-size-input');
@@ -3439,14 +3440,10 @@
                 return;
             }
 
-            const scriptLines = [
-                '$PickedVideos = @(',
-            ];
-            pickedVideos.forEach((name, index) => {
-                const comma = (index === pickedVideos.length - 1) ? '' : ',';
-                scriptLines.push(`    '${name.replace(/'/g, "''")}'${comma}`);
+            const scriptLines = [];
+            pickedVideos.forEach((name) => {
+                scriptLines.push(name);
             });
-            scriptLines.push(')');
 
             const scriptStr = scriptLines.join('\r\n');
             batchScriptTextArea.value = scriptStr;
@@ -3456,10 +3453,11 @@
 
             const blob = new Blob(['\ufeff', scriptStr], { type: 'text/plain' });
             downloadScriptLink.href = URL.createObjectURL(blob);
-            downloadScriptLink.download = 'picked_videos.ps1';
+            downloadScriptLink.download = 'picked_videos.txt';
 
-            document.getElementById('script-modal-title').textContent = "Picked Videos PowerShell List";
-            document.getElementById('script-modal-desc').textContent = "PowerShell array containing picked video names (without extensions).";
+            document.getElementById('script-modal-title').textContent = "Picked Videos List";
+            document.getElementById('script-modal-desc').textContent = "List of picked video names (without extensions).";
+            downloadBtnText.textContent = "Download .txt File";
             scriptModal.style.display = 'block';
         }
 
@@ -4302,6 +4300,7 @@
             const blob = new Blob(['\ufeff', scriptStr], { type: 'application/octet-stream' });
             downloadScriptLink.href = URL.createObjectURL(blob);
             downloadScriptLink.download = 'create_shortcuts.ps1';
+            downloadBtnText.textContent = "Download .ps1 File";
         }
 
 
@@ -5855,6 +5854,7 @@
             const blobP = new Blob(['\ufeff', scriptStrP], { type: 'application/octet-stream' });
             downloadScriptLink.href = URL.createObjectURL(blobP);
             downloadScriptLink.download = 'create_playlist.ps1';
+            downloadBtnText.textContent = "Download .ps1 File";
             
             document.getElementById('script-modal-title').textContent = "Create Playlist PowerShell Script";
             document.getElementById('script-modal-desc').textContent = "This script will create a playlist and update rotations. Run it in your main video directory.";
