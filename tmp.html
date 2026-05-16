@@ -2985,7 +2985,7 @@
             leftGroup.appendChild(createDeleteCross(videoName, projectPath, subfolder, rowDiv));
             leftGroup.appendChild(createBtn('Rotate Left', () => rotate(-90)));
             leftGroup.appendChild(createBtn('Rotate Right', () => rotate(90)));
-            if (currentMode === 'sc') {
+            if (currentMode === 'sc' || currentMode === 'directory') {
                 const togglePick = () => {
                     let selection = shortcutSelections.get(key);
                     if (!selection) {
@@ -3170,7 +3170,7 @@
             const isPlaylistRoot = mode === 'playlist-root' || mode === 'update-playlist-root';
 
             if (deleteShortcutsBtn) deleteShortcutsBtn.style.display = 'none'; 
-            if (pickListBtn) pickListBtn.style.display = isSc ? 'inline-block' : 'none';
+            if (pickListBtn) pickListBtn.style.display = (isSc || isDirectory) ? 'inline-block' : 'none';
             if (shortcutScriptBtn) shortcutScriptBtn.style.display = (isPlaylist || isPlaylistRoot) ? 'none' : 'inline-block';
             if (createPlaylistBtn) createPlaylistBtn.style.display = (isPlaylist || isPlaylistRoot) ? 'inline-block' : 'none';
 
